@@ -1,0 +1,14 @@
+@using BlazorIntro.Models
+
+<div class="employee">
+    <p class="employee-name">@employee.Name</p>
+    <div class="employee-details">
+        <p><strong>Age: </strong>@employee.Age</p>
+        <p><strong>Status: </strong>@employee.IsActive</p>    
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public required Employee employee { get; set; }
+}

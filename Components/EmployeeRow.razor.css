@@ -1,0 +1,23 @@
+.employee {
+    display: flex;
+    flex-direction: column;
+    background: rgb(231, 231, 231);
+    padding: 10px;
+    margin-bottom: 0.4rem;
+    border-radius: 3px;
+}
+
+.employee-name {
+    margin: 0px;
+}
+
+.employee-details {
+    display: flex;
+    padding-inline: 10px;
+    height: 20px;
+}
+
+    .employee-details > p {
+        margin-right: 10px;
+        font-size: smaller;
+    }

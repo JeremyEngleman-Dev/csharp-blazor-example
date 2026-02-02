@@ -1,0 +1,79 @@
+@page "/employees"
+@using System.Net.Http.Json
+@using BlazorIntro.Components
+@using BlazorIntro.Models
+@using Microsoft.AspNetCore.SignalR.Client;
+@using System.Runtime.CompilerServices
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<h3>Employees</h3>
+
+@if (employees == null)
+{
+    <p>No employees loaded</p>
+}
+else
+{
+    @foreach (Employee emp in employees)
+    {
+        <EmployeeRow employee=emp/>
+    }
+}
+
+@code {
+    private List<Employee> employees = new();
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("https://localhost:7120/employeeHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<Employee>("EmployeeAdd", emp =>
+        {
+            employees.Add(emp);
+            _ = InvokeAsync(StateHasChanged); // refresh UI
+        });
+
+        hubConnection.On<int>("EmployeeDelete", id =>
+        {
+            var emp = employees.FirstOrDefault(e => e.Id == id);
+            if (emp != null)
+            {
+                employees.Remove(emp);
+                _ = InvokeAsync(StateHasChanged);
+            }
+        });
+
+        hubConnection.On<Employee>("EmployeeUpdate", employee =>
+        {
+            var emp = employees.FirstOrDefault(e => e.Id == employee.Id);
+            if (emp != null)
+            {
+                emp.Name = employee.Name;
+                emp.Age = employee.Age;
+                emp.IsActive = employee.IsActive;
+                _ = InvokeAsync(StateHasChanged);
+            }
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task LoadEmployees()
+    {
+        employees = await Http.GetFromJsonAsync<List<Employee>>("https://localhost:7120/employees") ?? new List<Employee>();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+            await hubConnection.DisposeAsync();
+    }
+}
