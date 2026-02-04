@@ -1,14 +1,22 @@
 @using BlazorIntro.Models
+@using System.ComponentModel.Design
 
-<div class="employee">
-    <p class="employee-name">@employee.Name</p>
-    <div class="employee-details">
-        <p><strong>Age: </strong>@employee.Age</p>
-        <p><strong>Status: </strong>@employee.IsActive</p>    
+<div class="employee-card">
+    <div class="@EmployeeStatus(employee.IsActive)"></div>
+    <div class="employee">
+        <p class="employee-name">@employee.Name</p>
+        <div class="employee-details">
+            <p><strong>Age: </strong>@employee.Age</p>
+            <p><strong>Status: </strong>@employee.IsActive</p>
+        </div>    
     </div>
 </div>
 
 @code {
     [Parameter]
     public required Employee employee { get; set; }
+
+    string EmployeeStatus(bool value) {
+        return value ? "active" : "inactive";
+    }
 }
