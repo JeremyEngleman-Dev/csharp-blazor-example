@@ -1,0 +1,21 @@
+.form {
+    display:flex;
+    align-items:center;
+}
+
+    #button {
+        border-radius: 5px;
+        margin-right: 0.5rem;
+        height: 2.5rem;
+    }
+
+    .form-components-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+        .form-components {
+            margin-right: 0.5rem;
+        }
+

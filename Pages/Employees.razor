@@ -8,6 +8,39 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
+<EditForm Model="@employee" OnValidSubmit="@AddEmployee">
+    <DataAnnotationsValidator />
+
+    <div class="form">
+        <button id="button" type="submit">Create</button>
+        <div class="form-components-container">
+            <div class="form-components">
+                <InputText @bind-Value="employee.Name" />
+                <ValidationMessage For="@(() => employee.Name)" />
+            </div>
+            <div class="form-components">
+                <InputNumber @bind-Value="employee.Age" />
+                <ValidationMessage For="@(() => employee.Age)" /> 
+            </div>
+            <div class="form-components">
+                <InputRadioGroup @bind-Value="employee.Status">
+                    <label style="display: flex; align-items: center; margin-bottom: 4px;">
+                        <InputRadio Value="true" /> 
+                        <span style="margin-left: 6px;">Active</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center;">
+                        <InputRadio Value="false" /> 
+                        <span style="margin-left: 6px;">Inactive</span>
+                    </label>
+                </InputRadioGroup>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+<div style="height: 2px; background: black; margin-block: 20px;"/>
+
 <h3>Employees</h3>
 
 @if (employees == null)
@@ -23,6 +56,12 @@ else
 }
 
 @code {
+    private FormEmployee employee = new FormEmployee
+    {
+        Name = null,
+        Age = null,
+        Status = true
+    };
     private List<Employee> employees = new();
     private HubConnection? hubConnection;
 
@@ -31,7 +70,7 @@ else
         await LoadEmployees();
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("https://localhost:7120/employeeHub"))
+            .WithUrl(Navigation.ToAbsoluteUri("http://localhost:5113/employeeHub"))
             .WithAutomaticReconnect()
             .Build();
 
@@ -68,12 +107,43 @@ else
 
     private async Task LoadEmployees()
     {
-        employees = await Http.GetFromJsonAsync<List<Employee>>("https://localhost:7120/employees") ?? new List<Employee>();
+        employees = await Http.GetFromJsonAsync<List<Employee>>("http://localhost:5113/employees") ?? new List<Employee>();
     }
 
     public async ValueTask DisposeAsync()
     {
         if (hubConnection is not null)
             await hubConnection.DisposeAsync();
+    }
+
+    public async Task AddEmployee()
+    {
+        if (employee.Name is null) {
+            return;
+        }
+
+        if (employee.Age is null) {
+            return;
+        }
+
+        try
+        {
+            Employee newEmployee = new Employee { 
+                Name = employee.Name,
+                Age = (int)employee.Age,
+                IsActive = employee.Status,
+                Id = 0
+            };
+            
+            var response = await Http.PostAsJsonAsync("http://localhost:5113/employees", newEmployee);
+        }
+        catch (Exception ex)
+        {
+            string? statusMessage = $"Exception: {ex.Message}";
+        }
+
+        employee.Name = null;
+        employee.Age = null;
+        employee.Status = true;
     }
 }

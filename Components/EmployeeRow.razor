@@ -1,6 +1,8 @@
 @using BlazorIntro.Models
 @using System.ComponentModel.Design
 
+@inject HttpClient Http
+
 <div class="employee-card">
     <div class="@EmployeeStatus(employee.IsActive)"></div>
     <div class="employee">
@@ -10,6 +12,9 @@
             <p><strong>Status: </strong>@employee.IsActive</p>
         </div>    
     </div>
+    <div class="button-set">
+        <span class="material-symbols-outlined" id="delete-button" @onclick="@DeleteEmployee">delete</span>
+    </div>
 </div>
 
 @code {
@@ -18,5 +23,17 @@
 
     string EmployeeStatus(bool value) {
         return value ? "active" : "inactive";
+    }
+
+    public async Task DeleteEmployee()
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"http://localhost:5113/employees/{employee.Id}");
+        }
+        catch (Exception ex)
+        {
+            string? statusMessage = $"Exception: {ex.Message}";
+        }
     }
 }

@@ -5,6 +5,7 @@
     margin-bottom: 0.4rem;
     border-radius: 3px;
     max-width: 300px;
+    border: 1px solid transparent;
 }
 
 .active {
@@ -39,3 +40,15 @@
             margin-right: 10px;
             font-size: smaller;
         }
+
+.button-set {
+    display: flex;
+    justify-content: flex-end;
+    flex: 1;
+    margin-top: auto;
+}
+
+    #delete-button {
+        cursor: pointer;
+        margin: 4px;
+    }
