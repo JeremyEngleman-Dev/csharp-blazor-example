@@ -43,7 +43,7 @@
 
 <h3>Employees</h3>
 
-@if (employees == null)
+@if (employees?.Any() != true)
 {
     <p>No employees loaded</p>
 }
@@ -64,56 +64,95 @@ else
     };
     private List<Employee> employees = new();
     private HubConnection? hubConnection;
+    private string? statusMessage;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadEmployees();
 
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("http://localhost:5113/employeeHub"))
-            .WithAutomaticReconnect()
-            .Build();
-
-        hubConnection.On<Employee>("EmployeeAdd", emp =>
+        try
         {
-            employees.Add(emp);
-            _ = InvokeAsync(StateHasChanged); // refresh UI
-        });
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("http://localhost:5113/employeeHub"))
+                .WithAutomaticReconnect()
+                .Build();
 
-        hubConnection.On<int>("EmployeeDelete", id =>
+            hubConnection.On<Employee>("EmployeeAdd", emp =>
+                InvokeAsync(() =>
+                {
+                    employees.Add(emp);
+                    StateHasChanged();
+                })
+            );
+
+            hubConnection.On<int>("EmployeeDelete", id =>
+                InvokeAsync(() =>
+                {
+                    var emp = employees.FirstOrDefault(e => e.Id == id);
+                    if (emp != null)
+                    {
+                        employees.Remove(emp);
+                        StateHasChanged();
+                    }
+                })
+            );
+
+            hubConnection.On<Employee>("EmployeeUpdate", updated =>
+                InvokeAsync(() =>
+                {
+                    var emp = employees.FirstOrDefault(e => e.Id == updated.Id);
+                    if (emp != null)
+                    {
+                        emp.Name = updated.Name;
+                        emp.Age = updated.Age;
+                        emp.IsActive = updated.IsActive;
+                        StateHasChanged();
+                    }
+                })
+            );
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
         {
-            var emp = employees.FirstOrDefault(e => e.Id == id);
-            if (emp != null)
-            {
-                employees.Remove(emp);
-                _ = InvokeAsync(StateHasChanged);
-            }
-        });
-
-        hubConnection.On<Employee>("EmployeeUpdate", employee =>
-        {
-            var emp = employees.FirstOrDefault(e => e.Id == employee.Id);
-            if (emp != null)
-            {
-                emp.Name = employee.Name;
-                emp.Age = employee.Age;
-                emp.IsActive = employee.IsActive;
-                _ = InvokeAsync(StateHasChanged);
-            }
-        });
-
-        await hubConnection.StartAsync();
+            statusMessage = $"Live updates unavailable: {ex.Message}";
+        }
     }
 
     private async Task LoadEmployees()
     {
-        employees = await Http.GetFromJsonAsync<List<Employee>>("http://localhost:5113/employees") ?? new List<Employee>();
+        try
+        {
+            var response = await Http.GetAsync("http://localhost:5113/employees");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Server error: {response.StatusCode}";
+                employees = new();
+                return;
+            }
+
+            employees = await response.Content.ReadFromJsonAsync<List<Employee>>() ?? new();
+            statusMessage = null;
+        }
+        catch (HttpRequestException ex)
+        {
+            statusMessage = $"Network error: {ex.Message}";
+            employees = new();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Unexpected error: {ex.Message}";
+            employees = new();
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         if (hubConnection is not null)
+        {
             await hubConnection.DisposeAsync();
+        }
     }
 
     public async Task AddEmployee()
