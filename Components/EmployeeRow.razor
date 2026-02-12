@@ -2,6 +2,7 @@
 @using System.ComponentModel.Design
 
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="employee-card">
     <div class="@EmployeeStatus(employee.IsActive)"></div>
@@ -12,14 +13,25 @@
             <p><strong>Status: </strong>@employee.IsActive</p>
         </div>    
     </div>
-    <div class="button-set">
-        <span class="material-symbols-outlined" id="delete-button" @onclick="@DeleteEmployee">delete</span>
-    </div>
+    @if (isAdmin)
+    {
+        <div class="button-set">
+            <span class="material-symbols-outlined" id="delete-button" @onclick="@DeleteEmployee">delete</span>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter]
     public required Employee employee { get; set; }
+    private bool isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.Identity?.IsAuthenticated == true && user.IsInRole("Admin");
+    }
 
     string EmployeeStatus(bool value) {
         return value ? "active" : "inactive";
