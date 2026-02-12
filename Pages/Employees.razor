@@ -4,42 +4,46 @@
 @using BlazorIntro.Models
 @using Microsoft.AspNetCore.SignalR.Client;
 @using System.Runtime.CompilerServices
-
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
-<EditForm Model="@employee" OnValidSubmit="@AddEmployee">
-    <DataAnnotationsValidator />
+@if (isAdmin)
+{
+    <EditForm Model="@employee" OnValidSubmit="@AddEmployee">
+        <DataAnnotationsValidator />
 
-    <div class="form">
-        <button id="button" type="submit">Create</button>
-        <div class="form-components-container">
-            <div class="form-components">
-                <InputText @bind-Value="employee.Name" />
-                <ValidationMessage For="@(() => employee.Name)" />
-            </div>
-            <div class="form-components">
-                <InputNumber @bind-Value="employee.Age" />
-                <ValidationMessage For="@(() => employee.Age)" /> 
-            </div>
-            <div class="form-components">
-                <InputRadioGroup @bind-Value="employee.Status">
-                    <label style="display: flex; align-items: center; margin-bottom: 4px;">
-                        <InputRadio Value="true" /> 
-                        <span style="margin-left: 6px;">Active</span>
-                    </label>
+        <div class="form">
+            <button id="button" type="submit">Create</button>
+            <div class="form-components-container">
+                <div class="form-components">
+                    <InputText @bind-Value="employee.Name" />
+                    <ValidationMessage For="@(() => employee.Name)" />
+                </div>
+                <div class="form-components">
+                    <InputNumber @bind-Value="employee.Age" />
+                    <ValidationMessage For="@(() => employee.Age)" /> 
+                </div>
+                <div class="form-components">
+                    <InputRadioGroup @bind-Value="employee.Status">
+                        <label style="display: flex; align-items: center; margin-bottom: 4px;">
+                            <InputRadio Value="true" /> 
+                            <span style="margin-left: 6px;">Active</span>
+                        </label>
 
-                    <label style="display: flex; align-items: center;">
-                        <InputRadio Value="false" /> 
-                        <span style="margin-left: 6px;">Inactive</span>
-                    </label>
-                </InputRadioGroup>
+                        <label style="display: flex; align-items: center;">
+                            <InputRadio Value="false" /> 
+                            <span style="margin-left: 6px;">Inactive</span>
+                        </label>
+                    </InputRadioGroup>
+                </div>
             </div>
         </div>
-    </div>
-</EditForm>
+    </EditForm>
 
-<div style="height: 2px; background: black; margin-block: 20px;"/>
+    <div style="height: 2px; background: black; margin-block: 20px;"/>
+}
 
 <h3>Employees</h3>
 
@@ -56,6 +60,9 @@ else
 }
 
 @code {
+    @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+    @inject CustomAuthStateProvider AuthStateProvider
+
     private FormEmployee employee = new FormEmployee
     {
         Name = null,
@@ -65,10 +72,25 @@ else
     private List<Employee> employees = new();
     private HubConnection? hubConnection;
     private string? statusMessage;
+    private bool isAdmin;
+
+    private async Task AddJwtHeaderAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadEmployees();
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.Identity?.IsAuthenticated == true && user.IsInRole("Admin");
 
         try
         {
@@ -123,10 +145,15 @@ else
     {
         try
         {
+            await AddJwtHeaderAsync();
             var response = await Http.GetAsync("http://localhost:5113/employees");
 
             if (!response.IsSuccessStatusCode)
             {
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    Navigation.NavigateTo("/login");
+                }
                 statusMessage = $"Server error: {response.StatusCode}";
                 employees = new();
                 return;
@@ -157,16 +184,13 @@ else
 
     public async Task AddEmployee()
     {
-        if (employee.Name is null) {
+        if (employee.Name is null || employee.Age is null)
             return;
-        }
-
-        if (employee.Age is null) {
-            return;
-        }
 
         try
         {
+            await AddJwtHeaderAsync();
+
             Employee newEmployee = new Employee { 
                 Name = employee.Name,
                 Age = (int)employee.Age,
@@ -175,6 +199,11 @@ else
             };
             
             var response = await Http.PostAsJsonAsync("http://localhost:5113/employees", newEmployee);
+
+            if (!response.IsSuccessStatusCode && response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Navigation.NavigateTo("/login");
+            }
         }
         catch (Exception ex)
         {
